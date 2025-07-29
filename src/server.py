@@ -18,12 +18,13 @@ def index():
 def summarize_endpoint():
     data = request.get_json()
     youtube_url = data.get('url')
+    enable_hashtag = data.get('enable_hashtag', True)
 
     if not youtube_url:
         return jsonify({'error': 'YouTube URL is required'}), 400
 
     def generate():
-        for progress_update in summyt.process_video(youtube_url):
+        for progress_update in summyt.process_video(youtube_url, enable_hashtag):
             yield f"data: {json.dumps(progress_update)}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')

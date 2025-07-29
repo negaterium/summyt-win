@@ -58,7 +58,7 @@ def _extract_keyword(text: str) -> str:
     most_common = word_counts.most_common(1)
     return most_common[0][0] if most_common else "summary"
 
-def process_video(youtube_url):
+def process_video(youtube_url, enable_hashtag=True):
     start_time = time.time()
 
     yield {'status': 'Getting video information...', 'progress': 5}
@@ -118,9 +118,11 @@ def process_video(youtube_url):
 
     yield {'status': 'Summarization complete.', 'progress': 90}
 
-    # Extract keyword and prepend to summary
-    keyword = _extract_keyword(summarized_text)
-    final_summary_content = f"#{keyword}\n\n# Summary of {video_title}\n\n" + summarized_text
+    # Extract keyword and prepend to summary if enabled
+    final_summary_content = f"# Summary of {video_title}\n\n" + summarized_text
+    if enable_hashtag:
+        keyword = _extract_keyword(summarized_text)
+        final_summary_content = f"#{keyword}\n\n" + final_summary_content
 
     # Sanitize video_title for use as a filename
     sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Video Summarizer</title>
+    <title>SummYT Video Summarizer</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -42,12 +42,20 @@
         }
         .form-group {
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
         }
         label {
-            display: block;
-            margin-bottom: 8px;
+            display: inline-block;
+            margin-bottom: 0;
+            margin-right: 8px;
             font-weight: 600;
             color: var(--text-color);
+        }
+        input[type="text"] {
+            flex: 1;
+            min-width: 200px;
         }
         input[type="text"] {
             width: 100%;
@@ -177,12 +185,18 @@
 </head>
 <body>
     <div class="container">
-        <h1>YouTube Video Summarizer</h1>
+        <h1>SummYT Video Summarizer</h1>
         <div class="form-group">
-            <label for="youtubeLink">Paste YouTube URL:</label>
+            <label for="youtubeLink">YouTube URL:</label>
             <input type="text" id="youtubeLink" placeholder="https://www.youtube.com/watch?v=..." required>
         </div>
-        <button type="button" onclick="processLink()">Summarize</button>
+        <div class="form-group">
+            <input type="checkbox" id="enableHashtag" checked>
+            <label for="enableHashtag">Include #</label>
+        </div>
+        <div style="text-align: center;">
+            <button type="button" onclick="processLink()">Summarize</button>
+        </div>
         
         <div id="progressSection" class="progress-section">
             <h2>Processing Progress</h2>
@@ -205,6 +219,7 @@
     <script>
         async function processLink() {
             const linkInput = document.getElementById('youtubeLink');
+            const enableHashtagCheckbox = document.getElementById('enableHashtag');
             const resultDiv = document.getElementById('result');
             const summaryContent = document.getElementById('summaryContent');
             const progressSection = document.getElementById('progressSection');
@@ -213,6 +228,7 @@
             const statusText = document.getElementById('statusText');
 
             const youtubeUrl = linkInput.value.trim();
+            const enableHashtag = enableHashtagCheckbox.checked;
             
             if (!youtubeUrl) {
                 alert('Please enter a YouTube URL');
@@ -220,7 +236,7 @@
             }
             
             // Validate YouTube URL format
-            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*$/;
+            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
             if (!youtubeRegex.test(youtubeUrl)) {
                 alert('Please enter a valid YouTube URL');
                 return;
@@ -240,7 +256,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url: youtubeUrl })
+                    body: JSON.stringify({ url: youtubeUrl, enable_hashtag: enableHashtag })
                 });
 
                 if (!response.ok) {
