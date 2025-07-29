@@ -1,0 +1,11 @@
+yt-dlp
+librosa
+soundfile
+nemo_toolkit[asr]
+requests
+configparser
+matplotlib
+scipy
+torch
+nltk
+youtube-transcript-api
