@@ -6,8 +6,8 @@
 # Check GPU compatibility
 if python check_gpu.py 2>/dev/null; then
     echo "GPU is compatible, running with GPU acceleration..."
-    python src/transcribe.py "$@"
+    python transcribe.py "$@"
 else
     echo "GPU incompatible or not available, running on CPU..."
-    CUDA_VISIBLE_DEVICES="" python src/transcribe.py "$@"
+    CUDA_VISIBLE_DEVICES="" python transcribe.py "$@"
 fi

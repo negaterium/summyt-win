@@ -1,6 +1,7 @@
 import sys
 import os
 import configparser
+import time
 
 # Add the src directory to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -29,17 +30,13 @@ def load_config():
 
 SUMMARY_OUTPUT_DIR, TRANSCRIBED_OUTPUT_DIR = load_config()
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python summyt.py <youtube_url>")
-        sys.exit(1)
-    
-    youtube_url = sys.argv[1]
+def process_video(youtube_url):
+    start_time = time.time()
 
     # Get video info early to construct expected summary filename
     info_dict = download.get_video_info(youtube_url)
     if info_dict is None:
-        sys.exit(1)
+        raise Exception("Could not get video information.")
     video_title = info_dict.get('title', 'unknown_title')
 
     # Sanitize video_title for use as a filename
@@ -47,8 +44,10 @@ def main():
     expected_summary_filepath = os.path.join(SUMMARY_OUTPUT_DIR, f"{sanitized_title}-summarized.md")
 
     if os.path.exists(expected_summary_filepath):
-        print(f"Summary for '{video_title}' already exists at '{expected_summary_filepath}'. Skipping all steps.")
-        sys.exit(0)
+        with open(expected_summary_filepath, 'r', encoding='utf-8') as f:
+            summary = f.read()
+        processing_time = time.time() - start_time
+        return summary, f"{processing_time:.2f} seconds"
 
     transcribed_text = ""
     print("Proceeding with audio download and local transcription.")
@@ -56,7 +55,7 @@ def main():
     downloaded_filepath, video_title, is_transcript_existing = download.download_youtube(youtube_url)
 
     if downloaded_filepath is None:
-        sys.exit(1)
+        raise Exception("Failed to download audio.")
 
     if is_transcript_existing:
         print(f"Using existing transcript from: {downloaded_filepath}")
@@ -67,8 +66,7 @@ def main():
                 f.readline()
                 transcribed_text = f.read()
         except FileNotFoundError:
-            print(f"Error: Existing transcript file not found at {downloaded_filepath}. Exiting.")
-            sys.exit(1)
+            raise Exception(f"Existing transcript file not found at {downloaded_filepath}.")
     else:
         print(f"Processing audio file: {downloaded_filepath}")
         if transcribe:
@@ -76,19 +74,16 @@ def main():
             # Pass video_title and TRANSCRIBED_OUTPUT_DIR to transcribe_audio
             transcribed_text = transcribe.transcribe_audio(downloaded_filepath, video_title, TRANSCRIBED_OUTPUT_DIR)
             if not transcribed_text.strip():
-                print("Transcription failed or produced empty text. Exiting.")
-                sys.exit(1)
+                raise Exception("Transcription failed or produced empty text.")
             print("Transcription complete.")
         else:
-            print("Skipping transcription due to missing nemo-toolkit[asr]. Exiting.")
-            sys.exit(1)
+            raise Exception("Skipping transcription due to missing nemo-toolkit[asr].")
 
     print("Summarizing text...")
     summarized_text = summarize.summarize_text(transcribed_text)
 
     if not summarized_text.strip():
-        print("Summarization failed or produced empty text. Exiting without saving summary.")
-        sys.exit(1)
+        raise Exception("Summarization failed or produced empty text.")
 
     print("Summarization complete.")
 
@@ -103,7 +98,24 @@ def main():
             f.write(summarized_text)
         print(f"Summary saved to {output_filename}")
     except IOError as e:
-        print(f"Failed to write summary to {output_filename}: {e}")
+        raise Exception(f"Failed to write summary to {output_filename}: {e}")
+
+    processing_time = time.time() - start_time
+    return summarized_text, f"{processing_time:.2f} seconds"
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python summyt.py <youtube_url>")
+        sys.exit(1)
+    
+    youtube_url = sys.argv[1]
+
+    try:
+        summary, processing_time = process_video(youtube_url)
+        print(f"\nSummary:\n{summary}")
+        print(f"\nProcessing time: {processing_time}")
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':

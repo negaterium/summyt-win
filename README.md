@@ -77,13 +77,27 @@ max-summary-length=100000
 
 ## Usage
 
-To run the application, use the following command:
+To run the main summarization script, use the following command:
 
 ```bash
 python src/summyt.py <youtube_url>
 ```
 
 Replace `<youtube_url>` with the URL of the YouTube video you want to process.
+
+To start the web server, use the provided script:
+
+- On Windows:
+    ```bash
+    src\run_server.bat
+    ```
+- On macOS and Linux:
+    ```bash
+    bash src/run_server.sh
+    ```
+
+(Note: `run_server.sh` is not yet created, but `run_transcribe.sh` is available for direct transcription.)
+
 
 ## Dependencies
 

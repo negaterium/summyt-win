@@ -196,6 +196,34 @@ def transcribe_audio(audio_filepath: str, video_title: str, transcribed_output_d
         except IOError as e:
             logging.error(f"Failed to write to file {output_filename}: {e}")
             # Do not exit, just log the error, as transcription itself might have succeeded
+
+        # Delete all .wav files from the input directory after successful transcription
+        try:
+            # Extract the directory from the audio_filepath
+            input_directory = os.path.dirname(audio_filepath)
+            if not input_directory:
+                input_directory = "."  # Use current directory if no path is specified
+                
+            # Find all .wav files in the input directory
+            wav_files = [f for f in os.listdir(input_directory) if f.lower().endswith('.wav')]
+            
+            if wav_files:
+                logging.info(f"Found {len(wav_files)} .wav file(s) in {input_directory}")
+                deleted_count = 0
+                for filename in wav_files:
+                    file_path = os.path.join(input_directory, filename)
+                    try:
+                        os.remove(file_path)
+                        logging.info(f"Deleted .wav file: {file_path}")
+                        deleted_count += 1
+                    except Exception as e:
+                        logging.error(f"Failed to delete file {file_path}: {e}")
+                
+                logging.info(f"Successfully deleted {deleted_count} of {len(wav_files)} .wav files")
+            else:
+                logging.info(f"No .wav files found in {input_directory}")
+        except Exception as e:
+            logging.error(f"Failed to process .wav files in directory {input_directory}: {e}")
     else:
         logging.error("Transcription resulted in empty text. No output file will be created.")
         
