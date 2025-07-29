@@ -3,24 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Link Summarizer</title>
+    <title>YouTube Video Summarizer</title>
     <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --text-color: #e0e0e0;
+            --container-bg: #2a2a4a;
+            --border-color: #007bff;
+            --input-bg: #1a1a2e;
+            --input-border: #007bff;
+            --button-bg: #007bff;
+            --button-hover: #0056b3;
+            --result-bg: #2a2a4a;
+            --error-color: #dc3545;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            background-image: linear-gradient(135deg, var(--bg-color) 0%, #16213e 100%);
+            background-attachment: fixed;
+            overflow-x: hidden;
         }
         h1 {
             text-align: center;
-            color: #333;
+            color: var(--text-color);
         }
         .container {
-            background-color: white;
+            background-color: var(--container-bg);
             padding: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px var(--shadow-color);
+            border: 1px solid var(--border-color);
         }
         .form-group {
             margin-bottom: 20px;
@@ -29,18 +47,20 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #555;
+            color: var(--text-color);
         }
         input[type="text"] {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 5px;
             font-size: 16px;
             box-sizing: border-box;
+            background-color: var(--input-bg);
+            color: var(--text-color);
         }
         button {
-            background-color: #007bff;
+            background-color: var(--button-bg);
             color: white;
             padding: 12px 24px;
             border: none;
@@ -50,31 +70,131 @@
             transition: background-color 0.3s;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: var(--button-hover);
         }
         .result {
             margin-top: 20px;
             padding: 15px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
+            background-color: var(--result-bg);
+            border: 1px solid var(--border-color);
             border-radius: 5px;
             display: none;
+            line-height: 1.6;
+            font-size: 16px;
+            box-shadow: 0 2px 4px var(--shadow-color);
         }
         .error {
-            color: #dc3545;
+            color: var(--error-color);
             font-weight: 500;
+        }
+        /* Progress Bar Styles */
+        .progress-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            display: none; /* Hidden by default */
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: #444;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-bar {
+            height: 20px;
+            width: 0%;
+            background-color: var(--button-bg);
+            border-radius: 5px;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            transition: width 0.5s ease-in-out;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        /* Markdown styling */
+        .result h1, .result h2, .result h3, .result h4, .result h5, .result h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        .result h1 {
+            font-size: 1.8em;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5em;
+        }
+        .result h2 {
+            font-size: 1.5em;
+            margin-top: 2em;
+        }
+        .result h3 {
+            font-size: 1.3em;
+        }
+        .result ul, .result ol {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            padding-left: 2em;
+        }
+        .result li {
+            margin-bottom: 0.3em;
+        }
+        .result p {
+            margin-bottom: 1em;
+            line-height: 1.6;
+        }
+        .result blockquote {
+            margin: 1em 0;
+            padding: 0.5em 1em;
+            background-color: var(--container-bg);
+            border-left: 3px solid var(--button-bg);
+            font-style: italic;
+        }
+        .result code {
+            background-color: var(--input-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .result pre {
+            background-color: var(--input-bg);
+            padding: 1em;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1em 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>YouTube Link Summarizer</h1>
+        <h1>YouTube Video Summarizer</h1>
         <div class="form-group">
             <label for="youtubeLink">Paste YouTube URL:</label>
             <input type="text" id="youtubeLink" placeholder="https://www.youtube.com/watch?v=..." required>
         </div>
         <button type="button" onclick="processLink()">Summarize</button>
         
+        <div id="progressSection" class="progress-section">
+            <h2>Processing Progress</h2>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-info">
+                <span id="progressText">0%</span>
+                <span id="statusText">Initializing...</span>
+            </div>
+        </div>
+
         <div id="result" class="result">
             <h3>Summary:</h3>
             <div id="summaryContent"></div>
@@ -87,7 +207,11 @@
             const linkInput = document.getElementById('youtubeLink');
             const resultDiv = document.getElementById('result');
             const summaryContent = document.getElementById('summaryContent');
-            
+            const progressSection = document.getElementById('progressSection');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const statusText = document.getElementById('statusText');
+
             const youtubeUrl = linkInput.value.trim();
             
             if (!youtubeUrl) {
@@ -96,18 +220,21 @@
             }
             
             // Validate YouTube URL format
-            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+            const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*$/;
             if (!youtubeRegex.test(youtubeUrl)) {
                 alert('Please enter a valid YouTube URL');
                 return;
             }
             
-            // Show loading state
-            summaryContent.innerHTML = 'Processing...';
-            resultDiv.style.display = 'block';
+            // Reset and show loading state
+            summaryContent.innerHTML = '';
+            resultDiv.style.display = 'none';
+            progressSection.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            statusText.textContent = 'Starting...';
             
             try {
-                // Call the backend endpoint
                 const response = await fetch('/summarize', {
                     method: 'POST',
                     headers: {
@@ -115,18 +242,98 @@
                     },
                     body: JSON.stringify({ url: youtubeUrl })
                 });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    summaryContent.innerHTML = data.summary || 'No summary generated.';
-                    document.getElementById('processingTime').textContent = data.processing_time || 'N/A';
-                } else {
-                    summaryContent.innerHTML = `Error: ${data.error || 'Unknown error'}`;
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    summaryContent.innerHTML = `Error: ${errorData.error || 'Unknown error'}`;
+                    resultDiv.style.display = 'block';
+                    progressSection.style.display = 'none';
+                    return;
                 }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let receivedData = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+                    receivedData += decoder.decode(value, { stream: true });
+
+                    // Process each complete SSE message
+                    const messages = receivedData.split('\n\n');
+                    for (let i = 0; i < messages.length - 1; i++) {
+                        const message = messages[i];
+                        if (message.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(message.substring(6));
+                                if (data.status) {
+                                    statusText.textContent = data.status;
+                                }
+                                if (data.progress !== undefined) {
+                                    progressBar.style.width = `${data.progress}%`;
+                                    progressText.textContent = `${data.progress}%`;
+                                }
+                                if (data.summary) {
+                                    const formattedSummary = formatMarkdown(data.summary);
+                                    summaryContent.innerHTML = formattedSummary;
+                                    document.getElementById('processingTime').textContent = data.processing_time || 'N/A';
+                                    resultDiv.style.display = 'block';
+                                    progressSection.style.display = 'none'; // Hide progress when summary is ready
+                                }
+                            } catch (e) {
+                                console.error("Error parsing SSE data:", e);
+                            }
+                        }
+                    }
+                    receivedData = messages[messages.length - 1]; // Keep incomplete message
+                }
+
             } catch (error) {
                 summaryContent.innerHTML = `Network error: ${error.message}`;
+                resultDiv.style.display = 'block';
+                progressSection.style.display = 'none';
             }
+        }
+
+        // Function to format markdown text to HTML
+        function formatMarkdown(text) {
+            // Handle headings (H1, H2, H3, etc.)
+            text = text.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+            text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+            text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+            
+            // Handle bold and italic
+            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/__(.*?)__/g, '<strong>$1</strong>');
+            text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            text = text.replace(/_(.*?)_/g, '<em>$1</em>');
+            
+            // Handle code and inline code
+            text = text.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+            text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            // Handle lists
+            text = text.replace(/^(\s*)- (.*$)/gm, '$1<ul><li>$2</li></ul>');
+            text = text.replace(/^(\s*)\d+\. (.*$)/gm, '$1<ol><li>$2</li></ol>');
+            
+            // Handle blockquotes
+            text = text.replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>');
+            
+            // Handle line breaks
+            text = text.replace(/\n\n/g, '</p><p>');
+            text = text.replace(/\n/g, '<br>');
+            
+            // Handle paragraphs
+            text = text.replace(/<p><br><\/p>/g, '<p></p>');
+            text = text.replace(/<p><\/p>/g, '<p>&nbsp;</p>');
+            
+            // Ensure proper paragraph wrapping
+            text = text.replace(/<p><\/p>/g, '<p>&nbsp;</p>');
+            
+            return text;
         }
     </script>
 </body>

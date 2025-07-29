@@ -1,6 +1,7 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response
 import sys
 import os
+import json
 
 # Add the src directory to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -21,11 +22,11 @@ def summarize_endpoint():
     if not youtube_url:
         return jsonify({'error': 'YouTube URL is required'}), 400
 
-    try:
-        summary, processing_time = summyt.process_video(youtube_url)
-        return jsonify({'summary': summary, 'processing_time': processing_time})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    def generate():
+        for progress_update in summyt.process_video(youtube_url):
+            yield f"data: {json.dumps(progress_update)}\n\n"
+
+    return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -77,7 +77,9 @@ max-summary-length=100000
 
 ## Usage
 
-To run the main summarization script, use the following command:
+### Command-Line Interface (CLI)
+
+To run the main summarization script from the command line, use the following command:
 
 ```bash
 python src/summyt.py <youtube_url>
@@ -85,7 +87,9 @@ python src/summyt.py <youtube_url>
 
 Replace `<youtube_url>` with the URL of the YouTube video you want to process.
 
-To start the web server, use the provided script:
+### Web Interface
+
+To use the web interface, first start the web server:
 
 - On Windows:
     ```bash
@@ -95,6 +99,8 @@ To start the web server, use the provided script:
     ```bash
     bash src/run_server.sh
     ```
+
+Once the server is running, open your web browser and navigate to `http://127.0.0.1:5000`.
 
 (Note: `run_server.sh` is not yet created, but `run_transcribe.sh` is available for direct transcription.)
 
