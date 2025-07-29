@@ -7,7 +7,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import download
 import summarize
-import youtube_transcript
 
 try:
     import transcribe
@@ -52,45 +51,37 @@ def main():
         sys.exit(0)
 
     transcribed_text = ""
-    # Attempt to get YouTube transcript first
-    print("Attempting to retrieve YouTube transcript...")
-    youtube_generated_transcript = youtube_transcript.get_youtube_transcript(youtube_url)
+    print("Proceeding with audio download and local transcription.")
+    print(f"Downloading audio from {youtube_url}...")
+    downloaded_filepath, video_title, is_transcript_existing = download.download_youtube(youtube_url)
 
-    if youtube_generated_transcript:
-        print("YouTube transcript found. Using it for summarization.")
-        transcribed_text = youtube_generated_transcript
-    else:
-        print("No YouTube transcript found. Proceeding with audio download and local transcription.")
-        print(f"Downloading audio from {youtube_url}...")
-        downloaded_filepath, video_title, is_transcript_existing = download.download_youtube(youtube_url)
+    if downloaded_filepath is None:
+        sys.exit(1)
 
-        if downloaded_filepath is None:
+    if is_transcript_existing:
+        print(f"Using existing transcript from: {downloaded_filepath}")
+        try:
+            with open(downloaded_filepath, 'r', encoding='utf-8') as f:
+                # Skip the first two lines (title and empty line)
+                f.readline()
+                f.readline()
+                transcribed_text = f.read()
+        except FileNotFoundError:
+            print(f"Error: Existing transcript file not found at {downloaded_filepath}. Exiting.")
             sys.exit(1)
-
-        if is_transcript_existing:
-            print(f"Using existing transcript from: {downloaded_filepath}")
-            try:
-                with open(downloaded_filepath, 'r', encoding='utf-8') as f:
-                    # Skip the first two lines (title and empty line)
-                    f.readline()
-                    f.readline()
-                    transcribed_text = f.read()
-            except FileNotFoundError:
-                print(f"Error: Existing transcript file not found at {downloaded_filepath}. Exiting.")
+    else:
+        print(f"Processing audio file: {downloaded_filepath}")
+        if transcribe:
+            print("Transcribing audio...")
+            # Pass video_title and TRANSCRIBED_OUTPUT_DIR to transcribe_audio
+            transcribed_text = transcribe.transcribe_audio(downloaded_filepath, video_title, TRANSCRIBED_OUTPUT_DIR)
+            if not transcribed_text.strip():
+                print("Transcription failed or produced empty text. Exiting.")
                 sys.exit(1)
+            print("Transcription complete.")
         else:
-            print(f"Processing audio file: {downloaded_filepath}")
-            if transcribe:
-                print("Transcribing audio...")
-                # Pass video_title and TRANSCRIBED_OUTPUT_DIR to transcribe_audio
-                transcribed_text = transcribe.transcribe_audio(downloaded_filepath, video_title, TRANSCRIBED_OUTPUT_DIR)
-                if not transcribed_text.strip():
-                    print("Transcription failed or produced empty text. Exiting.")
-                    sys.exit(1)
-                print("Transcription complete.")
-            else:
-                print("Skipping transcription due to missing nemo-toolkit[asr]. Exiting.")
-                sys.exit(1)
+            print("Skipping transcription due to missing nemo-toolkit[asr]. Exiting.")
+            sys.exit(1)
 
     print("Summarizing text...")
     summarized_text = summarize.summarize_text(transcribed_text)
