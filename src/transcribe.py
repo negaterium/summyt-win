@@ -4,6 +4,10 @@ import logging
 import torch
 import nltk
 import nemo.collections.asr as nemo_asr
+import librosa
+import soundfile as sf
+import tempfile
+import shutil
 
 # Configure logging for clear output
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
@@ -44,6 +48,39 @@ def _check_gpu_compatibility() -> bool:
         logging.error(f"GPU compatibility check failed with an error: {e}")
         return False
 
+def _create_audio_chunks(audio_filepath: str, chunk_duration_s: int = 30) -> list[str]:
+    """
+    Splits an audio file into smaller chunks of a specified duration.
+
+    Args:
+        audio_filepath: Path to the audio file.
+        chunk_duration_s: The duration of each chunk in seconds.
+
+    Returns:
+        A list of filepaths to the created audio chunks.
+    """
+    try:
+        audio, sr = librosa.load(audio_filepath, sr=None, mono=True)
+        chunk_samples = chunk_duration_s * sr
+        num_chunks = len(audio) // chunk_samples + (1 if len(audio) % chunk_samples > 0 else 0)
+
+        temp_dir = tempfile.mkdtemp()
+        chunk_paths = []
+
+        for i in range(num_chunks):
+            start_sample = i * chunk_samples
+            end_sample = start_sample + chunk_samples
+            chunk_audio = audio[start_sample:end_sample]
+            chunk_filename = os.path.join(temp_dir, f"chunk_{i}.wav")
+            sf.write(chunk_filename, chunk_audio, sr)
+            chunk_paths.append(chunk_filename)
+        
+        return chunk_paths
+
+    except Exception as e:
+        logging.error(f"Failed to create audio chunks: {e}")
+        return []
+
 def _perform_transcription(audio_filepath: str, device: str) -> str:
     """
     Performs audio transcription using the specified device ('cuda' or 'cpu').
@@ -59,21 +96,25 @@ def _perform_transcription(audio_filepath: str, device: str) -> str:
     try:
         # Load the pre-trained EncDecRNNTBPEModel
         asr_model = nemo_asr.models.EncDecRNNTBPEModel.from_pretrained(model_name="nvidia/parakeet-tdt-0.6b-v2")
-        asr_model.to(device)
+        asr_model.to(device) 
+
+        logging.info("Creating audio chunks to manage memory...")
+        audio_chunks = _create_audio_chunks(audio_filepath)
+        if not audio_chunks:
+            return ""
 
         logging.info(f"Starting transcription on {device.upper()}...")
-        # Transcribe the audio file
-        transcriptions = asr_model.transcribe(audio=[audio_filepath], batch_size=16)
+        full_transcription = ""
+        for chunk_path in audio_chunks:
+            transcriptions = asr_model.transcribe(audio=[chunk_path], batch_size=1)
+            if transcriptions and transcriptions[0]:
+                full_transcription += transcriptions[0].text + " "
 
-        # Extract text from transcription result
-        if transcriptions and transcriptions[0]:
-            result = transcriptions[0]
-            text = result.text if hasattr(result, 'text') else str(result)
-            logging.info(f"Transcription on {device.upper()} completed successfully.")
-            return text
-        else:
-            logging.warning("Transcription resulted in an empty output.")
-            return ""
+        # Clean up temporary chunk files
+        shutil.rmtree(os.path.dirname(audio_chunks[0]))
+
+        logging.info(f"Transcription on {device.upper()} completed successfully.")
+        return full_transcription.strip()
 
     except Exception as e:
         logging.error(f"An error occurred during transcription on {device.upper()}: {e}")

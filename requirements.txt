@@ -1,3 +1,11 @@
+# For GPU acceleration, ensure you have a compatible version of PyTorch installed.
+# You may need to install a specific version depending on your CUDA toolkit.
+# For example, for CUDA 12.9, you might run:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu129
+
+torch
+torchvision
+torchaudio
 yt-dlp
 librosa
 soundfile
@@ -6,6 +14,4 @@ requests
 configparser
 matplotlib
 scipy
-torch
 nltk
-youtube-transcript-api
