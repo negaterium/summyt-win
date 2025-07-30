@@ -9,6 +9,7 @@ Summyt is a Python-based tool that automates the process of downloading, transcr
 - **Memory Optimization:** Employs audio chunking to manage memory consumption effectively, even with long videos.
 - **Local Summarization:** Connects to a local language model (e.g., via LM Studio) to generate summaries of the transcribed text.
 - **Customizable Configuration:** Allows for easy customization of model settings, file paths, and prompts through a simple `config.ini` file.
+- **Automatic Categorization:** Automatically categorizes summaries into predefined topics and organizes them into corresponding folders.
 
 ## Project Structure
 
@@ -67,6 +68,7 @@ llm="google/gemma-3n-e4b"
 summarization-prompt="Create a concise summary of the following audio transcript..."
 summary-save-path="C:\Path\To\Your\Summaries"
 transcribed-text-save-path="C:\Path\To\Your\Transcripts"
+enable-categorization=True
 max-summary-length=100000
 ```
 

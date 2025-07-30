@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import download
 import summarize
+import categorize
 
 try:
     import transcribe
@@ -39,9 +40,10 @@ def load_config():
     
     summary_save_path = config['youtubedl'].get('summary-save-path', 'assets/output').strip('"')
     transcribed_text_save_path = config['youtubedl'].get('transcribed-text-save-path', 'assets/output').strip('"')
-    return summary_save_path, transcribed_text_save_path
+    enable_categorization = config['youtubedl'].getboolean('enable-categorization', False)
+    return summary_save_path, transcribed_text_save_path, enable_categorization
 
-SUMMARY_OUTPUT_DIR, TRANSCRIBED_OUTPUT_DIR = load_config()
+SUMMARY_OUTPUT_DIR, TRANSCRIBED_OUTPUT_DIR, ENABLE_CATEGORIZATION = load_config()
 
 def _extract_keyword(text: str) -> str:
     """
@@ -135,6 +137,10 @@ def process_video(youtube_url, enable_hashtag=True):
         yield {'status': f'Summary saved to {output_filename}', 'progress': 95}
     except IOError as e:
         raise Exception(f"Failed to write summary to {output_filename}: {e}")
+
+    if ENABLE_CATEGORIZATION:
+        yield {'status': 'Categorizing summary...', 'progress': 98}
+        categorize.categorize_summary(output_filename)
 
     processing_time = time.time() - start_time
     yield {'status': 'Completed', 'progress': 100, 'summary': final_summary_content, 'processing_time': f"{processing_time:.2f} seconds"}
