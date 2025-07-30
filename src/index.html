@@ -226,6 +226,7 @@
         <div class="form-group">
             <label for="youtubeLink">YouTube URL:</label>
             <input type="text" id="youtubeLink" placeholder="https://www.youtube.com/watch?v=..." required>
+            <button type="button" id="resetBtn" onclick="resetForm()">Reset</button>
         </div>
         <div id="videoTitleDisplay" style="margin-bottom: 20px; text-align: center; display: none;">
             <h2 id="videoTitle"></h2>
@@ -409,6 +410,27 @@
             text = text.replace(/<p><\/p>/g, '<p>&nbsp;</p>');
             
             return text;
+        }
+        
+        // Function to reset the form
+        function resetForm() {
+            const linkInput = document.getElementById('youtubeLink');
+            const videoTitleDisplay = document.getElementById('videoTitleDisplay');
+            const resultDiv = document.getElementById('result');
+            const progressSection = document.getElementById('progressSection');
+            
+            // Clear the input field
+            linkInput.value = '';
+            
+            // Hide the video title display
+            videoTitleDisplay.style.display = 'none';
+            
+            // Hide the result and progress sections
+            resultDiv.style.display = 'none';
+            progressSection.style.display = 'none';
+            
+            // Focus on the input field
+            linkInput.focus();
         }
     </script>
 </body>
