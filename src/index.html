@@ -218,6 +218,104 @@
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4); 
+        }
+
+        .modal-content {
+            background-color: var(--container-bg); /* Use theme color */
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid var(--border-color); /* Use theme color */
+            width: 80%; 
+            border-radius: 10px;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            color: var(--text-color); /* Ensure text is readable */
+        }
+
+        .modal-content h2 {
+            color: var(--text-color);
+        }
+
+        .close {
+            color: var(--text-color); /* Use theme color */
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            transition: color 0.3s;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: var(--button-bg); /* Highlight on hover */
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        #configTextarea {
+            width: 100%;
+            height: 400px;
+            background-color: var(--input-bg); /* Use theme color */
+            color: var(--text-color); /* Use theme color */
+            border: 1px solid var(--input-border); /* Use theme color */
+            border-radius: 5px;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical; /* Allow vertical resizing */
+            font-family: monospace;
+        }
+
+        /* Category Panel Styles */
+        .category-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .category-panel h3 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .category-panel ul {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .category-panel li {
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 20px;
+            padding: 8px 15px;
+            margin: 5px;
+            font-size: 0.9em;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .category-panel li:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
@@ -235,11 +333,14 @@
         <div class="form-group">
             <input type="checkbox" id="enableHashtag" checked>
             <label for="enableHashtag">Include #</label>
-            <input type="checkbox" id="enableCategory" checked>
-            <label for="enableCategory">Categorize</label>
+            <input type="checkbox" id="enableCategory" checked onchange="toggleCategoryPanel()">
+            <label for="enableCategory">User Categories</label>
         </div>
         <div style="text-align: center;">
             <button type="button" onclick="processLink()">Summarize</button>
+            <button type="button" onclick="openConfigModal()">Modify Configuration</button>
+            <select id="llmProviderSelect" onchange="updateLLMProvider()"></select>
+            <input type="text" id="currentLLMModel" readonly style="margin-left: 10px; width: 200px; background-color: #333; color: #eee; border: 1px solid #555;">
         </div>
         
         <div id="progressSection" class="progress-section">
@@ -257,6 +358,20 @@
             <h3>Summary:</h3>
             <div id="summaryContent"></div>
             <p><strong>Processing Time:</strong> <span id="processingTime"></span></p>
+        </div>
+
+        <div id="categoryPanel" class="category-panel">
+            <h3>Categories</h3>
+            <ul id="categoryList"></ul>
+        </div>
+    </div>
+
+    <div id="configModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeConfigModal()">×</span>
+            <h2>Edit config.ini</h2>
+            <textarea id="configTextarea"></textarea>
+            <button onclick="saveConfig()">Save</button>
         </div>
     </div>
 
@@ -321,7 +436,7 @@
 
                 if (!processingResponse.ok) {
                     const errorData = await processingResponse.json();
-                    summaryContent.innerHTML = `Error: ${errorData.error || 'Unknown error'}`;
+                    summaryContent.innerHTML = `<span class="error">Error: ${errorData.error || 'Unknown error'}</span>`;
                     resultDiv.style.display = 'block';
                     progressSection.style.display = 'none';
                     return;
@@ -368,7 +483,7 @@
                 }
 
             } catch (error) {
-                summaryContent.innerHTML = `Network error: ${error.message}`;
+                summaryContent.innerHTML = `<span class="error">Network error: ${error.message}</span>`;
                 resultDiv.style.display = 'block';
                 progressSection.style.display = 'none';
             }
@@ -376,7 +491,13 @@
 
         // Function to format markdown text to HTML
         function formatMarkdown(text) {
-            // Handle headings (H1, H2, H3, etc.)
+            // Newlines within a paragraph
+            text = text.replace(/([^\n])\n([^\n])/g, '$1<br>$2');
+
+            // Handle headings (H1, H2, H3, etc.) - order matters, from specific to general
+            text = text.replace(/^###### (.*$)/gm, '<h6>$1</h6>');
+            text = text.replace(/^##### (.*$)/gm, '<h5>$1</h5>');
+            text = text.replace(/^#### (.*$)/gm, '<h4>$1</h4>');
             text = text.replace(/^### (.*$)/gm, '<h3>$1</h3>');
             text = text.replace(/^## (.*$)/gm, '<h2>$1</h2>');
             text = text.replace(/^# (.*$)/gm, '<h1>$1</h1>');
@@ -388,26 +509,61 @@
             text = text.replace(/_(.*?)_/g, '<em>$1</em>');
             
             // Handle code and inline code
-            text = text.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
-            text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+            text = text.replace(/```([\s\S]*?)```/gs, '<pre><code>$1</code></pre>'); // Multiline code blocks
+            text = text.replace(/`(.*?)`/g, '<code>$1</code>'); // Inline code
             
-            // Handle lists
-            text = text.replace(/^(\s*)- (.*$)/gm, '$1<ul><li>$2</li></ul>');
-            text = text.replace(/^(\s*)\d+\. (.*$)/gm, '$1<ol><li>$2</li></ol>');
-            
+            // Handle lists (basic) - will need more robust logic for nested lists or mixed types
+            // Convert list items into proper HTML list structure
+            let htmlList = '';
+            let inUnorderedList = false;
+            let inOrderedList = false;
+
+            text.split('\n').forEach(line => {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+                    if (!inUnorderedList) {
+                        htmlList += '<ul>';
+                        inUnorderedList = true;
+                        inOrderedList = false;
+                    }
+                    htmlList += `<li>${line.substring(line.indexOf(' ') + 1)}</li>`;
+                } else if (trimmedLine.match(/^\d+\. /)) {
+                    if (!inOrderedList) {
+                        htmlList += '<ol>';
+                        inOrderedList = true;
+                        inUnorderedList = false;
+                    }
+                    htmlList += `<li>${line.substring(line.indexOf(' ') + 1)}</li>`;
+                } else {
+                    if (inUnorderedList) {
+                        htmlList += '</ul>';
+                        inUnorderedList = false;
+                    }
+                    if (inOrderedList) {
+                        htmlList += '</ol>';
+                        inOrderedList = false;
+                    }
+                    htmlList += `<p>${line}</p>`; // Treat as paragraph
+                }
+            });
+
+            if (inUnorderedList) htmlList += '</ul>';
+            if (inOrderedList) htmlList += '</ol>';
+            text = htmlList;
+
             // Handle blockquotes
             text = text.replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>');
             
-            // Handle line breaks
-            text = text.replace(/\n\n/g, '</p><p>');
-            text = text.replace(/\n/g, '<br>');
-            
-            // Handle paragraphs
-            text = text.replace(/<p><br><\/p>/g, '<p></p>');
-            text = text.replace(/<p><\/p>/g, '<p>&nbsp;</p>');
-            
-            // Ensure proper paragraph wrapping
-            text = text.replace(/<p><\/p>/g, '<p>&nbsp;</p>');
+            // Handle paragraphs for remaining text (simple, assumes blank lines separate)
+            text = text.split('\n\n').map(p => {
+                // Only wrap if it's not already a block element
+                if (!p.trim().startsWith('<h') && !p.trim().startsWith('<ul') &&
+                    !p.trim().startsWith('<ol') && !p.trim().startsWith('<block') &&
+                    !p.trim().startsWith('<pre')) {
+                    return `<p>${p.trim()}</p>`;
+                }
+                return p.trim();
+            }).join('');
             
             return text;
         }
@@ -432,6 +588,255 @@
             // Focus on the input field
             linkInput.focus();
         }
+
+        function openConfigModal() {
+            fetch('/get_config')
+                .then(response => response.text())
+                .then(text => {
+                    document.getElementById('configTextarea').value = text;
+                    document.getElementById('configModal').style.display = 'block';
+                })
+                .catch(error => alert('Error fetching config: ' + error.message));
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').style.display = 'none';
+        }
+
+        function saveConfig() {
+            const newConfig = document.getElementById('configTextarea').value;
+            fetch('/save_config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ config: newConfig })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Configuration saved successfully! Some changes might require restarting the server.');
+                    closeConfigModal();
+                    // Re-fetch categories and providers if config changes, as they might be affected
+                    getCategories();
+                    getLLMProviders();
+                } else {
+                    alert('Error saving configuration: ' + data.error);
+                }
+            })
+            .catch(error => alert('Error saving config: ' + error.message));
+        }
+
+        function getLLMProviders() {
+            fetch('/get_llm_providers')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('llmProviderSelect');
+                    select.innerHTML = '';
+                    if (data.providers && data.providers.length > 0) {
+                        data.providers.forEach(provider => {
+                            const option = document.createElement('option');
+                            option.value = provider;
+                            option.text = provider;
+                            if (provider === data.selected) {
+                                option.selected = true;
+                            }
+                            select.appendChild(option);
+                        });
+                    } else {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.text = 'No providers found';
+                        select.appendChild(option);
+                    }
+                    document.getElementById('currentLLMModel').value = data.current_llm_model;
+                })
+                .catch(error => {
+                    console.error('Error fetching LLM providers:', error);
+                    const select = document.getElementById('llmProviderSelect');
+                    select.innerHTML = '<option value="">Error loading providers</option>';
+                });
+        }
+
+        function updateLLMProvider() {
+            const select = document.getElementById('llmProviderSelect');
+            const newProvider = select.value;
+            if (!newProvider) {
+                alert('Please select a valid LLM provider.');
+                return;
+            }
+            fetch('/update_llm_provider', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ provider: newProvider })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('LLM provider updated successfully!');
+                } else {
+                    alert('Error updating LLM provider: ' + data.error);
+                }
+            })
+            .catch(error => alert('Error updating LLM provider: ' + error.message));
+        }
+
+        function getCategories() {
+            fetch('/get_categories')
+                .then(response => response.json())
+                .then(data => {
+                    const categoryList = document.getElementById('categoryList');
+                    categoryList.innerHTML = '';
+                    if (data.categories && data.categories.length > 0) {
+                        data.categories.forEach(category => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = category;
+                            listItem.onclick = () => processLinkWithCategory(category);
+                            categoryList.appendChild(listItem);
+                        });
+                    } else {
+                        categoryList.innerHTML = '<li>No categories found. Check config.ini.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching categories:', error);
+                    const categoryList = document.getElementById('categoryList');
+                    categoryList.innerHTML = '<li>Error loading categories.</li>';
+                });
+        }
+
+        function toggleCategoryPanel() {
+            const enableCategoryCheckbox = document.getElementById('enableCategory');
+            const categoryPanel = document.getElementById('categoryPanel');
+            if (enableCategoryCheckbox.checked) {
+                categoryPanel.style.display = 'block';
+            } else {
+                categoryPanel.style.display = 'none';
+            }
+        }
+
+        async function processLinkWithCategory(category) {
+            const linkInput = document.getElementById('youtubeLink');
+            const enableHashtagCheckbox = document.getElementById('enableHashtag');
+            const resultDiv = document.getElementById('result');
+            const summaryContent = document.getElementById('summaryContent');
+            const progressSection = document.getElementById('progressSection');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const statusText = document.getElementById('statusText');
+            const videoTitleDisplay = document.getElementById('videoTitleDisplay');
+            const videoTitle = document.getElementById('videoTitle');
+            const videoDescription = document.getElementById('videoDescription');
+            
+            const youtubeUrl = linkInput.value.trim();
+            const enableHashtag = enableHashtagCheckbox.checked;
+            
+            if (!youtubeUrl) {
+                alert('Please enter a YouTube URL');
+                return;
+            }
+            
+            try {
+                // Fetch video info from our backend
+                const infoResponse = await fetch('/get_video_info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: youtubeUrl })
+                });
+
+                if (!infoResponse.ok) {
+                    const errorData = await infoResponse.json();
+                    throw new Error(errorData.error || 'Failed to fetch video details');
+                }
+
+                const infoData = await infoResponse.json();
+                videoTitle.textContent = infoData.title;
+                videoDescription.textContent = infoData.description;
+                videoTitleDisplay.style.display = 'block';
+
+                // Reset and show loading state
+                summaryContent.innerHTML = '';
+                resultDiv.style.display = 'none';
+                progressSection.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+                statusText.textContent = 'Starting...';
+
+                // Proceed with processing after title is displayed
+                const processingResponse = await fetch('/summarize_with_category', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: youtubeUrl, enable_hashtag: enableHashtag, enforced_category: category })
+                });
+
+                if (!processingResponse.ok) {
+                    const errorData = await processingResponse.json();
+                    summaryContent.innerHTML = `<span class="error">Error: ${errorData.error || 'Unknown error'}</span>`;
+                    resultDiv.style.display = 'block';
+                    progressSection.style.display = 'none';
+                    return;
+                }
+
+                const reader = processingResponse.body.getReader();
+                const decoder = new TextDecoder();
+                let receivedData = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+                    receivedData += decoder.decode(value, { stream: true });
+
+                    // Process each complete SSE message
+                    const messages = receivedData.split('\n\n');
+                    for (let i = 0; i < messages.length - 1; i++) {
+                        const message = messages[i];
+                        if (message.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(message.substring(6));
+                                if (data.status) {
+                                    statusText.textContent = data.status;
+                                }
+                                if (data.progress !== undefined) {
+                                    progressBar.style.width = `${data.progress}%`;
+                                    progressText.textContent = `${data.progress}%`;
+                                }
+                                if (data.summary) {
+                                    const formattedSummary = formatMarkdown(data.summary);
+                                    summaryContent.innerHTML = formattedSummary;
+                                    document.getElementById('processingTime').textContent = data.processing_time || 'N/A';
+                                    resultDiv.style.display = 'block';
+                                    progressSection.style.display = 'none'; // Hide progress when summary is ready
+                                }
+                            } catch (e) {
+                                console.error("Error parsing SSE data:", e);
+                            }
+                        }
+                    }
+                    receivedData = messages[messages.length - 1]; // Keep incomplete message
+                }
+
+            } catch (error) {
+                summaryContent.innerHTML = `<span class="error">Network error: ${error.message}</span>`;
+                resultDiv.style.display = 'block';
+                progressSection.style.display = 'none';
+            }
+        }
+
+        // --- FIX: COMBINED WINDOW.ONLOAD FUNCTION ---
+        window.onload = function() {
+            getLLMProviders();
+            getCategories();
+            toggleCategoryPanel();
+        };
+        // --- END FIX ---
     </script>
 </body>
 </html>

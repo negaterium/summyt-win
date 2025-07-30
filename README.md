@@ -61,9 +61,16 @@ Before running the application, you need to configure the `src/config.ini` file:
 ```ini
 [youtubedl]
 
+llm_provider="lmstudio" # or "ollama"
+
+# LM Studio settings
+provider-url="http://localhost:1234/v1/chat/completions"
+
+# Ollama settings
+ollama_api_url="http://localhost:11434/api/chat"
+
 yt-dlp-format="yt-dlp -x --audio-format wav"
 tts-model="nvidia/parakeet-tdt-0.6b-v2"
-provider-url="http://localhost:1234/v1/chat/completions"
 llm="google/gemma-3n-e4b"
 summarization-prompt="Create a concise summary of the following audio transcript..."
 summary-save-path="C:\Path\To\Your\Summaries"
@@ -72,10 +79,13 @@ enable-categorization=True
 max-summary-length=100000
 ```
 
+- **`llm_provider`**: The LLM provider to use. Can be `lmstudio` or `ollama`.
 - **`provider-url`**: The URL of your local language model server (e.g., LM Studio).
+- **`ollama_api_url`**: The URL for the Ollama API.
 - **`llm`**: The name of the language model to use for summarization.
 - **`summary-save-path`**: The directory where the generated summaries will be saved.
 - **`transcribed-text-save-path`**: The directory where the transcribed text will be saved.
+- **`enable-categorization`**: Set to `True` to enable automatic categorization of summaries.
 
 ## Usage
 

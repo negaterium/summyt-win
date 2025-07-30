@@ -60,7 +60,7 @@ def _extract_keyword(text: str) -> str:
     most_common = word_counts.most_common(1)
     return most_common[0][0] if most_common else "summary"
 
-def process_video(youtube_url, enable_hashtag=True):
+def process_video(youtube_url, enable_hashtag=True, enforced_category=None):
     start_time = time.time()
 
     yield {'status': 'Getting video information...', 'progress': 5}
@@ -138,7 +138,18 @@ def process_video(youtube_url, enable_hashtag=True):
     except IOError as e:
         raise Exception(f"Failed to write summary to {output_filename}: {e}")
 
-    if ENABLE_CATEGORIZATION:
+    if enforced_category:
+        yield {'status': f'Enforcing category: {enforced_category}...', 'progress': 98}
+        # Construct the new path with the enforced category
+        category_dir = os.path.join(CATEGORY_OUTPUT_DIR, enforced_category)
+        os.makedirs(category_dir, exist_ok=True)
+        new_filepath = os.path.join(category_dir, os.path.basename(output_filename))
+        try:
+            shutil.move(output_filename, new_filepath)
+            yield {'status': f'Summary moved to {new_filepath}', 'progress': 99}
+        except Exception as e:
+            raise Exception(f"Error moving file to enforced category {enforced_category}: {e}")
+    elif ENABLE_CATEGORIZATION:
         yield {'status': 'Categorizing summary...', 'progress': 98}
         categorize.categorize_summary(output_filename)
 

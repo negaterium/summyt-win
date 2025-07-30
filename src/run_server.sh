@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Activate the virtual environment
-source ../venv/bin/activate
+# Get the directory where the script is located
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Run the Flask server
-python server.py
+# Run the server from that directory
+python "$DIR/server.py"

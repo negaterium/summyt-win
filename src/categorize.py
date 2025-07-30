@@ -18,49 +18,70 @@ def load_config():
         sys.exit(1)
     config.read(config_path)
     
+    llm_provider = config['youtubedl'].get('llm_provider', 'lmstudio').strip('"')
     summary_save_path = config['youtubedl']['summary-save-path'].strip('"')
     category_save_path = summary_save_path  # Use summary-save-path for categories
     llm_model = config['youtubedl'].get('llm')
-    provider_url = config['youtubedl'].get('provider-url')
     
+    if llm_provider == 'ollama':
+        provider_url = config['youtubedl'].get('ollama_api_url')
+    else:
+        provider_url = config['youtubedl'].get('provider-url')
+
     if not llm_model or not provider_url:
-        print("Error: Missing required configuration values (llm or provider-url)")
+        print("Error: Missing required configuration values (llm, provider-url, or ollama_api_url)")
         sys.exit(1)
         
-    return llm_model.strip('"'), provider_url.strip('"'), summary_save_path, category_save_path
+    return llm_provider, llm_model.strip('"'), provider_url.strip('"'), summary_save_path, category_save_path
 
-MODEL_NAME, LMSTUDIO_API_URL, SUMMARY_OUTPUT_DIR, CATEGORY_OUTPUT_DIR = load_config()
+LLM_PROVIDER, MODEL_NAME, API_URL, SUMMARY_OUTPUT_DIR, CATEGORY_OUTPUT_DIR = load_config()
 
 def analyze_with_llm(text, prompt):
     """
     Analyze text using the same LLM used in summarization.
     """
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [
-            {
-                "role": "user",
-                "content": f"{prompt}\n\n---\n\n{text}",
-            }
-        ],
-    }
+    if LLM_PROVIDER == 'ollama':
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{prompt}\n\n---\n\n{text}",
+                }
+            ],
+            "stream": False
+        }
+    else: # Default to lmstudio
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{prompt}\n\n---\n\n{text}",
+                }
+            ],
+        }
     
     try:
-        response = requests.post(LMSTUDIO_API_URL, json=payload)
+        response = requests.post(API_URL, json=payload)
         response.raise_for_status()
         data = response.json()
         
-        if "choices" in data and data["choices"] and "message" in data["choices"][0] and "content" in data["choices"][0]["message"]:
-            return data["choices"][0]["message"]["content"]
-        else:
-            print(f"Unexpected API response format: {json.dumps(data, indent=2)}")
-            return ""
+        if LLM_PROVIDER == 'ollama':
+            if "message" in data and "content" in data["message"]:
+                return data["message"]["content"]
+        else: # lmstudio
+            if "choices" in data and data["choices"] and "message" in data["choices"][0] and "content" in data["choices"][0]["message"]:
+                return data["choices"][0]["message"]["content"]
+
+        print(f"Unexpected API response format: {json.dumps(data, indent=2)}")
+        return ""
             
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during the API request: {e}")
         if e.response:
             print(f"LM Studio Response: {e.response.text}")
-        print(f"Please ensure the model '{MODEL_NAME}' is loaded in LM Studio and that the server is running correctly at {LMSTUDIO_API_URL}.")
+        print(f"Please ensure the model '{MODEL_NAME}' is loaded in your LLM provider and that the server is running correctly at {API_URL}.")
         return ""
         
     except Exception as e:

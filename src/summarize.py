@@ -18,13 +18,18 @@ def load_config():
         if 'youtubedl' not in config:
             raise KeyError("Section 'youtubedl' not found in the configuration file.")
 
+        llm_provider = config['youtubedl'].get('llm_provider', 'lmstudio').strip('"')
         llm_model = config['youtubedl'].get('llm')
         if not llm_model:
             raise KeyError("Key 'llm' not found or is empty under section 'youtubedl'.")
 
-        provider_url = config['youtubedl'].get('provider-url')
+        if llm_provider == 'ollama':
+            provider_url = config['youtubedl'].get('ollama_api_url')
+        else:
+            provider_url = config['youtubedl'].get('provider-url')
+
         if not provider_url:
-            raise KeyError("Key 'provider-url' not found or is empty under section 'youtubedl'.")
+            raise KeyError("Key 'provider-url' or 'ollama_api_url' not found or is empty under section 'youtubedl'.")
 
         summarization_prompt = config['youtubedl'].get('summarization-prompt', '')
         if not summarization_prompt:
@@ -41,12 +46,12 @@ def load_config():
             print("Warning: Invalid value for max-summary-length in configuration. Using default value of 150000.")
             max_text_length = 150000
 
-        return llm_model.strip('"'), provider_url.strip('"'), summarization_prompt.strip('"'), summary_save_path, max_text_length
+        return llm_provider, llm_model.strip('"'), provider_url.strip('"'), summarization_prompt.strip('"'), summary_save_path, max_text_length
     except Exception as e:
         print(f"An error occurred while loading the configuration: {e}")
         sys.exit(1)
 
-MODEL_NAME, LMSTUDIO_API_URL, SUMMARIZATION_PROMPT, OUTPUT_DIR, MAX_TEXT_LENGTH = load_config()
+LLM_PROVIDER, MODEL_NAME, API_URL, SUMMARIZATION_PROMPT, OUTPUT_DIR, MAX_TEXT_LENGTH = load_config()
 
 def summarize_text(text):
     if not text.strip():
@@ -58,29 +63,45 @@ def summarize_text(text):
         print(f"Warning: Input text is too long ({len(text)} characters). Truncating to {MAX_TEXT_LENGTH} characters.")
         text = text[:MAX_TEXT_LENGTH]
 
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [
-            {
-                "role": "user",
-                "content": f"{SUMMARIZATION_PROMPT}\n\n---\n\n{text}",
-            }
-        ],
-    }
+    if LLM_PROVIDER == 'ollama':
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{SUMMARIZATION_PROMPT}\n\n---\n\n{text}",
+                }
+            ],
+            "stream": False
+        }
+    else: # Default to lmstudio
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{SUMMARIZATION_PROMPT}\n\n---\n\n{text}",
+                }
+            ],
+        }
 
-    print(f"Sending payload to LM Studio at {LMSTUDIO_API_URL} for model: {MODEL_NAME}")
+    print(f"Sending payload to {LLM_PROVIDER} at {API_URL} for model: {MODEL_NAME}")
 
 
     try:
-        response = requests.post(LMSTUDIO_API_URL, json=payload)
+        response = requests.post(API_URL, json=payload)
         response.raise_for_status()
         data = response.json()
 
-        if "choices" in data and data["choices"] and "message" in data["choices"][0] and "content" in data["choices"][0]["message"]:
-            return data["choices"][0]["message"]["content"]
-        else:
-            print(f"Unexpected API response format: {json.dumps(data, indent=2)}")
-            return ""
+        if LLM_PROVIDER == 'ollama':
+            if "message" in data and "content" in data["message"]:
+                return data["message"]["content"]
+        else: # lmstudio
+            if "choices" in data and data["choices"] and "message" in data["choices"][0] and "content" in data["choices"][0]["message"]:
+                return data["choices"][0]["message"]["content"]
+        
+        print(f"Unexpected API response format: {json.dumps(data, indent=2)}")
+        return ""
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred during the API request: {e}")
