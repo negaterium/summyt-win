@@ -18,8 +18,8 @@ def load_config():
         sys.exit(1)
     config.read(config_path)
     
-    summary_save_path = config['youtubedl'].get('summary-save-path', 'assets/output').strip('"')
-    category_save_path = config['youtubedl'].get('category-save-path', 'assets/categories').strip('"')
+    summary_save_path = config['youtubedl']['summary-save-path'].strip('"')
+    category_save_path = summary_save_path  # Use summary-save-path for categories
     llm_model = config['youtubedl'].get('llm')
     provider_url = config['youtubedl'].get('provider-url')
     
