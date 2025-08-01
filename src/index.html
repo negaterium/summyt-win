@@ -275,47 +275,7 @@
             font-family: monospace;
         }
 
-        /* Category Panel Styles */
-        .category-panel {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            box-shadow: 0 2px 4px var(--shadow-color);
-        }
-
-        .category-panel h3 {
-            text-align: center;
-            margin-top: 0;
-            margin-bottom: 15px;
-            color: var(--text-color);
-        }
-
-        .category-panel ul {
-            list-style: none;
-            padding: 0;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .category-panel li {
-            background-color: var(--input-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 20px;
-            padding: 8px 15px;
-            margin: 5px;
-            font-size: 0.9em;
-            color: var(--text-color);
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.3s;
-        }
-
-        .category-panel li:hover {
-            background-color: var(--button-hover);
-            transform: translateY(-2px);
-        }
+        /* Category Panel Styles - removed */
     </style>
 </head>
 <body>
@@ -333,14 +293,13 @@
         <div class="form-group">
             <input type="checkbox" id="enableHashtag" checked>
             <label for="enableHashtag">Include #</label>
-            <input type="checkbox" id="enableCategory" checked onchange="toggleCategoryPanel()">
-            <label for="enableCategory">User Categories</label>
         </div>
         <div style="text-align: center;">
             <button type="button" onclick="processLink()">Summarize</button>
             <button type="button" onclick="openConfigModal()">Modify Configuration</button>
             <select id="llmProviderSelect" onchange="updateLLMProvider()"></select>
             <input type="text" id="currentLLMModel" readonly style="margin-left: 10px; width: 200px; background-color: #333; color: #eee; border: 1px solid #555;">
+            <button id="downloadMdBtn" type="button" style="margin-left: 10px; display: none;" onclick="downloadSummaryMd()">Download .md</button>
         </div>
         
         <div id="progressSection" class="progress-section">
@@ -360,10 +319,6 @@
             <p><strong>Processing Time:</strong> <span id="processingTime"></span></p>
         </div>
 
-        <div id="categoryPanel" class="category-panel">
-            <h3>Categories</h3>
-            <ul id="categoryList"></ul>
-        </div>
     </div>
 
     <div id="configModal" class="modal">
@@ -376,6 +331,9 @@
     </div>
 
     <script>
+        // Keep a copy of the raw markdown that the backend streams so it can be downloaded as .md
+        let lastSummaryMarkdown = '';
+
         async function processLink() {
             const linkInput = document.getElementById('youtubeLink');
             const enableHashtagCheckbox = document.getElementById('enableHashtag');
@@ -574,6 +532,7 @@
             const videoTitleDisplay = document.getElementById('videoTitleDisplay');
             const resultDiv = document.getElementById('result');
             const progressSection = document.getElementById('progressSection');
+            const dlBtn = document.getElementById('downloadMdBtn');
             
             // Clear the input field
             linkInput.value = '';
@@ -584,6 +543,10 @@
             // Hide the result and progress sections
             resultDiv.style.display = 'none';
             progressSection.style.display = 'none';
+
+            // Hide download button and clear cached markdown
+            lastSummaryMarkdown = '';
+            if (dlBtn) dlBtn.style.display = 'none';
             
             // Focus on the input field
             linkInput.focus();
@@ -683,158 +646,49 @@
             .catch(error => alert('Error updating LLM provider: ' + error.message));
         }
 
-        function getCategories() {
-            fetch('/get_categories')
-                .then(response => response.json())
-                .then(data => {
-                    const categoryList = document.getElementById('categoryList');
-                    categoryList.innerHTML = '';
-                    if (data.categories && data.categories.length > 0) {
-                        data.categories.forEach(category => {
-                            const listItem = document.createElement('li');
-                            listItem.textContent = category;
-                            listItem.onclick = () => processLinkWithCategory(category);
-                            categoryList.appendChild(listItem);
-                        });
-                    } else {
-                        categoryList.innerHTML = '<li>No categories found. Check config.ini.</li>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching categories:', error);
-                    const categoryList = document.getElementById('categoryList');
-                    categoryList.innerHTML = '<li>Error loading categories.</li>';
-                });
-        }
-
-        function toggleCategoryPanel() {
-            const enableCategoryCheckbox = document.getElementById('enableCategory');
-            const categoryPanel = document.getElementById('categoryPanel');
-            if (enableCategoryCheckbox.checked) {
-                categoryPanel.style.display = 'block';
-            } else {
-                categoryPanel.style.display = 'none';
-            }
-        }
-
-        async function processLinkWithCategory(category) {
-            const linkInput = document.getElementById('youtubeLink');
-            const enableHashtagCheckbox = document.getElementById('enableHashtag');
-            const resultDiv = document.getElementById('result');
-            const summaryContent = document.getElementById('summaryContent');
-            const progressSection = document.getElementById('progressSection');
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-            const statusText = document.getElementById('statusText');
-            const videoTitleDisplay = document.getElementById('videoTitleDisplay');
-            const videoTitle = document.getElementById('videoTitle');
-            const videoDescription = document.getElementById('videoDescription');
-            
-            const youtubeUrl = linkInput.value.trim();
-            const enableHashtag = enableHashtagCheckbox.checked;
-            
-            if (!youtubeUrl) {
-                alert('Please enter a YouTube URL');
+        // Trigger a download of the current summary as a .md file
+        function downloadSummaryMd() {
+            if (!lastSummaryMarkdown || !lastSummaryMarkdown.trim()) {
+                alert('No summary available to download.');
                 return;
             }
-            
+            // Try to create a reasonable filename from the heading if present
+            let filename = 'summary.md';
             try {
-                // Fetch video info from our backend
-                const infoResponse = await fetch('/get_video_info', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url: youtubeUrl })
-                });
-
-                if (!infoResponse.ok) {
-                    const errorData = await infoResponse.json();
-                    throw new Error(errorData.error || 'Failed to fetch video details');
-                }
-
-                const infoData = await infoResponse.json();
-                videoTitle.textContent = infoData.title;
-                videoDescription.textContent = infoData.description;
-                videoTitleDisplay.style.display = 'block';
-
-                // Reset and show loading state
-                summaryContent.innerHTML = '';
-                resultDiv.style.display = 'none';
-                progressSection.style.display = 'block';
-                progressBar.style.width = '0%';
-                progressText.textContent = '0%';
-                statusText.textContent = 'Starting...';
-
-                // Proceed with processing after title is displayed
-                const processingResponse = await fetch('/summarize_with_category', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url: youtubeUrl, enable_hashtag: enableHashtag, enforced_category: category })
-                });
-
-                if (!processingResponse.ok) {
-                    const errorData = await processingResponse.json();
-                    summaryContent.innerHTML = `<span class="error">Error: ${errorData.error || 'Unknown error'}</span>`;
-                    resultDiv.style.display = 'block';
-                    progressSection.style.display = 'none';
-                    return;
-                }
-
-                const reader = processingResponse.body.getReader();
-                const decoder = new TextDecoder();
-                let receivedData = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        break;
+                // Look for line starting with "# Summary of "
+                const lines = lastSummaryMarkdown.split('\n');
+                const titleLine = lines.find(l => l.trim().toLowerCase().startsWith('# summary of '));
+                if (titleLine) {
+                    let title = titleLine.replace(/^#\s*Summary of\s*/i, '').trim();
+                    // sanitize filename
+                    title = title.replace(/[^a-z0-9 \-_]/gi, '').trim();
+                    if (title.length > 0) {
+                        filename = `${title}-summarized.md`;
                     }
-                    receivedData += decoder.decode(value, { stream: true });
-
-                    // Process each complete SSE message
-                    const messages = receivedData.split('\n\n');
-                    for (let i = 0; i < messages.length - 1; i++) {
-                        const message = messages[i];
-                        if (message.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(message.substring(6));
-                                if (data.status) {
-                                    statusText.textContent = data.status;
-                                }
-                                if (data.progress !== undefined) {
-                                    progressBar.style.width = `${data.progress}%`;
-                                    progressText.textContent = `${data.progress}%`;
-                                }
-                                if (data.summary) {
-                                    const formattedSummary = formatMarkdown(data.summary);
-                                    summaryContent.innerHTML = formattedSummary;
-                                    document.getElementById('processingTime').textContent = data.processing_time || 'N/A';
-                                    resultDiv.style.display = 'block';
-                                    progressSection.style.display = 'none'; // Hide progress when summary is ready
-                                }
-                            } catch (e) {
-                                console.error("Error parsing SSE data:", e);
-                            }
-                        }
-                    }
-                    receivedData = messages[messages.length - 1]; // Keep incomplete message
                 }
-
-            } catch (error) {
-                summaryContent.innerHTML = `<span class="error">Network error: ${error.message}</span>`;
-                resultDiv.style.display = 'block';
-                progressSection.style.display = 'none';
+            } catch (e) {
+                // fallback to default filename
             }
-        }
 
+            const blob = new Blob([lastSummaryMarkdown], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 0);
+        }
+        
         // --- FIX: COMBINED WINDOW.ONLOAD FUNCTION ---
         window.onload = function() {
             getLLMProviders();
-            getCategories();
-            toggleCategoryPanel();
+            // Ensure download button is hidden on load
+            const dlBtn = document.getElementById('downloadMdBtn');
+            if (dlBtn) dlBtn.style.display = 'none';
         };
         // --- END FIX ---
     </script>

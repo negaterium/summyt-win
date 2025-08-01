@@ -119,12 +119,17 @@ def process_video(youtube_url, enable_hashtag=True, enforced_category=None):
         raise Exception("Summarization failed or produced empty text.")
 
     yield {'status': 'Summarization complete.', 'progress': 90}
-
-    # Extract keyword and prepend to summary if enabled
-    final_summary_content = f"# Summary of {video_title}\n\n" + summarized_text
+    
+    # Build markdown header with optional hashtag and original YouTube link
+    header_lines = []
     if enable_hashtag:
         keyword = _extract_keyword(summarized_text)
-        final_summary_content = f"#{keyword}\n\n" + final_summary_content
+        header_lines.append(f"#{keyword}")
+    # Add the original youtube link formatted nicely
+    header_lines.append(f"[Watch on YouTube]({youtube_url})")
+    
+    # Compose final summary content
+    final_summary_content = "\n".join(header_lines) + f"\n\n# Summary of {video_title}\n\n" + summarized_text
 
     # Sanitize video_title for use as a filename
     sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
