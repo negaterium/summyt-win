@@ -299,7 +299,7 @@
             <button type="button" onclick="openConfigModal()">Modify Configuration</button>
             <select id="llmProviderSelect" onchange="updateLLMProvider()"></select>
             <input type="text" id="currentLLMModel" readonly style="margin-left: 10px; width: 200px; background-color: #333; color: #eee; border: 1px solid #555;">
-            <button id="downloadMdBtn" type="button" style="margin-left: 10px; display: none;" onclick="downloadSummaryMd()">Download .md</button>
+            <button id="downloadMdBtn" type="button" style="margin-left: 10px; visibility: hidden;" onclick="downloadSummaryMd()">Download .md</button>
         </div>
         
         <div id="progressSection" class="progress-section">
@@ -333,6 +333,13 @@
     <script>
         // Keep a copy of the raw markdown that the backend streams so it can be downloaded as .md
         let lastSummaryMarkdown = '';
+        const downloadBtn = () => document.getElementById('downloadMdBtn');
+        function showDownloadBtn(show) {
+            const btn = downloadBtn();
+            if (!btn) return;
+            // Use visibility so the button keeps its layout but is hidden initially
+            btn.style.visibility = show ? 'visible' : 'hidden';
+        }
 
         async function processLink() {
             const linkInput = document.getElementById('youtubeLink');
@@ -426,11 +433,13 @@
                                     progressText.textContent = `${data.progress}%`;
                                 }
                                 if (data.summary) {
+                                    lastSummaryMarkdown = data.summary; // Store the raw markdown
                                     const formattedSummary = formatMarkdown(data.summary);
                                     summaryContent.innerHTML = formattedSummary;
                                     document.getElementById('processingTime').textContent = data.processing_time || 'N/A';
                                     resultDiv.style.display = 'block';
                                     progressSection.style.display = 'none'; // Hide progress when summary is ready
+                                    showDownloadBtn(!!lastSummaryMarkdown.trim());
                                 }
                             } catch (e) {
                                 console.error("Error parsing SSE data:", e);
@@ -546,7 +555,7 @@
 
             // Hide download button and clear cached markdown
             lastSummaryMarkdown = '';
-            if (dlBtn) dlBtn.style.display = 'none';
+            showDownloadBtn(false);
             
             // Focus on the input field
             linkInput.focus();
@@ -580,8 +589,7 @@
                 if (data.success) {
                     alert('Configuration saved successfully! Some changes might require restarting the server.');
                     closeConfigModal();
-                    // Re-fetch categories and providers if config changes, as they might be affected
-                    getCategories();
+                    // Re-fetch providers if config changes, as they might be affected
                     getLLMProviders();
                 } else {
                     alert('Error saving configuration: ' + data.error);
@@ -687,8 +695,7 @@
         window.onload = function() {
             getLLMProviders();
             // Ensure download button is hidden on load
-            const dlBtn = document.getElementById('downloadMdBtn');
-            if (dlBtn) dlBtn.style.display = 'none';
+            showDownloadBtn(false);
         };
         // --- END FIX ---
     </script>
