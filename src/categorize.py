@@ -131,10 +131,10 @@ def categorize_summary(summary_filepath):
     """
     
     # Analyze the content using the LLM
-    category = analyze_with_llm(summary_content, prompt)
+    category = analyze_with_llm(summary_content, prompt).strip()
     
     # If no category was determined, use the title
-    if not category.strip():
+    if not category:
         category = title_part
     
     # Create the category directory if it doesn't exist
