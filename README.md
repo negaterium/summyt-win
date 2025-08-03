@@ -114,20 +114,17 @@ To use the web interface, first start the web server:
 
 Once the server is running, open your web browser and navigate to `http://127.0.0.1:5000`.
 
-(Note: `run_server.sh` is not yet created, but `run_transcribe.sh` is available for direct transcription.)
+
 
 
 ## Dependencies
 
 - torch
-- torchvision
-- torchaudio
 - yt-dlp
 - librosa
 - soundfile
 - nemo_toolkit[asr]
 - requests
 - configparser
-- matplotlib
-- scipy
 - nltk
+- Flask
