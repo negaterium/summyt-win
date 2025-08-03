@@ -89,6 +89,33 @@ max-summary-length=100000
 
 ## Usage
 
+### Docker (GPU)
+
+To run the application inside a Docker container with NVIDIA GPU support, you can use the provided `Dockerfile.gpu`. This is the recommended method for a stable and consistent environment.
+
+**Prerequisites:**
+- [Docker](https://docs.docker.com/get-docker/) installed.
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on your host system.
+
+**1. Build the Docker Image:**
+
+Open a terminal in the project root and run the following command:
+
+```bash
+docker build -t summyt-win-gpu -f Dockerfile.gpu .
+```
+
+**2. Run the Docker Container:**
+
+Once the image is built, start the container with GPU access:
+
+```bash
+docker run --gpus all -p 5000:5000 summyt-win-gpu
+```
+
+The application will be accessible at `http://localhost:5000`.
+
+
 ### Command-Line Interface (CLI)
 
 To run the main summarization script from the command line, use the following command:

@@ -1,0 +1,37 @@
+# 1. Use an official NVIDIA CUDA runtime as a parent image
+# This image includes the CUDA toolkit needed for GPU acceleration.
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
+
+# 2. Set environment variables to ensure GPU is visible
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+# 3. Install Python, pip, and other essentials
+# Set DEBIAN_FRONTEND to noninteractive to avoid prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y     python3.11     python3-pip     git     && rm -rf /var/lib/apt/lists/*
+
+# Create a symbolic link for python3 to python
+RUN ln -s /usr/bin/python3.11 /usr/bin/python
+
+# 4. Set the working directory in the container
+WORKDIR /app
+
+# 5. Copy the requirements file and install dependencies
+COPY requirements.txt .
+
+# 6. Install the correct PyTorch version for CUDA 12.1, then the rest of the requirements
+RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 7. Copy the application source code into the container
+COPY src/ /app/src/
+
+# 8. Copy the assets directory
+COPY assets/ /app/assets/
+
+# 9. Expose the port the app runs on
+EXPOSE 5000
+
+# 10. Define the command to run the application
+CMD ["python", "src/server.py"]
