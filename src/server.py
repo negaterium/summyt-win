@@ -35,12 +35,13 @@ def summarize_endpoint():
     data = request.get_json()
     youtube_url = data.get('url')
     enable_hashtag = data.get('enable_hashtag', True)
+    save_md_summary = data.get('save_md_summary', True)
 
     if not youtube_url:
         return jsonify({'error': 'YouTube URL is required'}), 400
 
     def generate():
-        for progress_update in summyt.process_video(youtube_url, enable_hashtag):
+        for progress_update in summyt.process_video(youtube_url, enable_hashtag, save_md_summary=save_md_summary):
             yield f"data: {json.dumps(progress_update)}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
@@ -87,10 +88,11 @@ def get_llm_providers():
     config.read(config_path)
     selected_provider = config['youtubedl'].get('llm_provider', 'lmstudio').strip('"')
     current_llm_model = config['youtubedl'].get('llm', '').strip('"')
+    openrouter_api_key = config['youtubedl'].get('openrouter-api-key', '').strip('"')
     print(f"get_llm_providers: selected_provider={selected_provider}")
-    print(f"get_llm_providers: providers={['lmstudio', 'ollama']}")
+    print(f"get_llm_providers: providers={['lmstudio', 'ollama', 'openrouter']}")
     print(f"get_llm_providers: current_llm_model={current_llm_model}")
-    return jsonify({'providers': ['lmstudio', 'ollama'], 'selected': selected_provider, 'current_llm_model': current_llm_model})
+    return jsonify({'providers': ['lmstudio', 'ollama', 'openrouter'], 'selected': selected_provider, 'current_llm_model': current_llm_model, 'openrouter_api_key': openrouter_api_key})
 
 @app.route('/update_llm_provider', methods=['POST'])
 def update_llm_provider():
@@ -107,6 +109,25 @@ def update_llm_provider():
         return jsonify({'success': True})
     except Exception as e:
         print(f"update_llm_provider: error={e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/save_openrouter_config', methods=['POST'])
+def save_openrouter_config():
+    data = request.get_json()
+    api_key = data.get('api_key')
+    model = data.get('model')
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
+    config.read(config_path)
+    config['youtubedl']['openrouter-api-key'] = f'"{api_key}"'
+    config['youtubedl']['llm'] = f'"{model}"'
+    try:
+        with open(config_path, 'w') as f:
+            config.write(f)
+        print(f"save_openrouter_config: api_key={api_key}, model={model}")
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"save_openrouter_config: error={e}")
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get_categories')

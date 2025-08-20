@@ -294,12 +294,22 @@
             <input type="checkbox" id="enableHashtag" checked>
             <label for="enableHashtag">Include #</label>
         </div>
+        <div class="form-group">
+            <input type="checkbox" id="saveSummaryMd" checked>
+            <label for="saveSummaryMd">Save Summary as .md</label>
+        </div>
         <div style="text-align: center;">
             <button type="button" onclick="processLink()">Summarize</button>
             <button type="button" onclick="openConfigModal()">Modify Configuration</button>
-            <select id="llmProviderSelect" onchange="updateLLMProvider()"></select>
+            <select id="llmProviderSelect" onchange="updateLLMProviderDisplay()"></select>
             <input type="text" id="currentLLMModel" readonly style="margin-left: 10px; width: 200px; background-color: #333; color: #eee; border: 1px solid #555;">
             <button id="downloadMdBtn" type="button" style="margin-left: 10px; visibility: hidden;" onclick="downloadSummaryMd()">Download .md</button>
+        </div>
+        
+        <div id="openRouterConfig" style="display: none; margin-top: 20px; text-align: center;">
+            <label for="openRouterApiKey">OpenRouter API Key:</label>
+            <input type="text" id="openRouterApiKey" placeholder="sk-or-..." style="width: 300px; margin-right: 10px;">
+            <button type="button" onclick="saveOpenRouterConfig()">Save OpenRouter Config</button>
         </div>
         
         <div id="progressSection" class="progress-section">
@@ -396,7 +406,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ url: youtubeUrl, enable_hashtag: enableHashtag })
+                    body: JSON.stringify({ url: youtubeUrl, enable_hashtag: enableHashtag, save_md_summary: saveSummaryMd })
                 });
 
                 if (!processingResponse.ok) {
@@ -446,7 +456,7 @@
                             }
                         }
                     }
-                    receivedData = messages[messages.length - 1]; // Keep incomplete message
+                                        receivedData = messages[messages.length - 1]; // Keep incomplete message
                 }
 
             } catch (error) {
@@ -455,6 +465,7 @@
                 progressSection.style.display = 'none';
             }
         }
+
 
         // Function to format markdown text to HTML
         function formatMarkdown(text) {
@@ -587,23 +598,24 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Configuration saved successfully! Some changes might require restarting the server.');
+                    console.log('Configuration saved successfully! Some changes might require restarting the server.');
                     closeConfigModal();
                     // Re-fetch providers if config changes, as they might be affected
                     getLLMProviders();
                 } else {
-                    alert('Error saving configuration: ' + data.error);
+                    console.error('Error saving configuration: ' + data.error);
                 }
             })
-            .catch(error => alert('Error saving config: ' + error.message));
+            .catch(error => console.error('Error saving config: ' + error.message));
         }
 
         function getLLMProviders() {
+            console.log('getLLMProviders function called.');
             fetch('/get_llm_providers')
                 .then(response => response.json())
                 .then(data => {
                     const select = document.getElementById('llmProviderSelect');
-                    select.innerHTML = '';
+                    select.innerHTML = ''; // Clear existing options
                     if (data.providers && data.providers.length > 0) {
                         data.providers.forEach(provider => {
                             const option = document.createElement('option');
@@ -621,19 +633,37 @@
                         select.appendChild(option);
                     }
                     document.getElementById('currentLLMModel').value = data.current_llm_model;
+                    document.getElementById('openRouterApiKey').value = data.openrouter_api_key || '';
+                    updateLLMProviderDisplay(); // Call to update display based on selected provider
                 })
                 .catch(error => {
                     console.error('Error fetching LLM providers:', error);
                     const select = document.getElementById('llmProviderSelect');
                     select.innerHTML = '<option value="">Error loading providers</option>';
+                    // Ensure the display is updated even on error, to hide OpenRouter config if not applicable
+                    updateLLMProviderDisplay();
                 });
         }
 
-        function updateLLMProvider() {
+        function updateLLMProviderDisplay() {
             const select = document.getElementById('llmProviderSelect');
+            const openRouterConfigDiv = document.getElementById('openRouterConfig');
             const newProvider = select.value;
+
+            if (newProvider === 'openrouter') {
+                openRouterConfigDiv.style.display = 'block';
+            } else {
+                openRouterConfigDiv.style.display = 'none';
+            }
+            if (newProvider) {
+                // Only update the backend config if a valid provider is selected
+                updateLLMProviderBackend(newProvider);
+            }
+        }
+
+        function updateLLMProviderBackend(newProvider) {
             if (!newProvider) {
-                alert('Please select a valid LLM provider.');
+                console.error('Please select a valid LLM provider.');
                 return;
             }
             fetch('/update_llm_provider', {
@@ -646,12 +676,43 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('LLM provider updated successfully!');
+                    console.log('LLM provider updated successfully in backend.');
                 } else {
-                    alert('Error updating LLM provider: ' + data.error);
+                    console.error('Error updating LLM provider in backend: ' + data.error);
                 }
             })
-            .catch(error => alert('Error updating LLM provider: ' + error.message));
+            .catch(error => console.error('Error updating LLM provider in backend: ', error));
+        }
+
+                function saveOpenRouterConfig() {
+            const apiKey = document.getElementById('openRouterApiKey').value.trim();
+            const model = document.getElementById('currentLLMModel').value.trim(); // Assuming this holds the model for OpenRouter too
+
+            if (!apiKey) {
+                console.error('Please enter an OpenRouter API Key.');
+                return;
+            }
+            if (!model) {
+                console.error('Please enter a model for OpenRouter.');
+                return;
+            }
+
+            fetch('/save_openrouter_config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ api_key: apiKey, model: model })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('OpenRouter configuration saved successfully!');
+                } else {
+                    console.error('Error saving OpenRouter configuration: ' + data.error);
+                }
+            })
+            .catch(error => console.error('Error saving OpenRouter config: ' + error.message));
         }
 
         // Trigger a download of the current summary as a .md file
@@ -693,6 +754,7 @@
         
         // --- FIX: COMBINED WINDOW.ONLOAD FUNCTION ---
         window.onload = function() {
+            console.log('window.onload fired.');
             getLLMProviders();
             // Ensure download button is hidden on load
             showDownloadBtn(false);

@@ -7,6 +7,7 @@ import json
 # Summary output directory will be loaded from config.ini
 # Maximum text length for summarization will be loaded from config.ini
 
+
 def load_config():
     config = configparser.ConfigParser()
     try:
@@ -25,11 +26,15 @@ def load_config():
 
         if llm_provider == 'ollama':
             provider_url = config['youtubedl'].get('ollama_api_url')
+        elif llm_provider == 'openrouter':
+            provider_url = config['youtubedl'].get('openrouter-api-url')
         else:
             provider_url = config['youtubedl'].get('provider-url')
 
         if not provider_url:
             raise KeyError("Key 'provider-url' or 'ollama_api_url' not found or is empty under section 'youtubedl'.")
+
+        openrouter_api_key = config['youtubedl'].get('openrouter-api-key', '').strip('"')
 
         summarization_prompt = config['youtubedl'].get('summarization-prompt', '')
         if not summarization_prompt:
@@ -46,12 +51,12 @@ def load_config():
             print("Warning: Invalid value for max-summary-length in configuration. Using default value of 150000.")
             max_text_length = 150000
 
-        return llm_provider, llm_model.strip('"'), provider_url.strip('"'), summarization_prompt.strip('"'), summary_save_path, max_text_length
+        return llm_provider, llm_model.strip('"'), provider_url.strip('"'), summarization_prompt.strip('"'), summary_save_path, max_text_length, openrouter_api_key
     except Exception as e:
         print(f"An error occurred while loading the configuration: {e}")
         sys.exit(1)
 
-LLM_PROVIDER, MODEL_NAME, API_URL, SUMMARIZATION_PROMPT, OUTPUT_DIR, MAX_TEXT_LENGTH = load_config()
+LLM_PROVIDER, MODEL_NAME, API_URL, SUMMARIZATION_PROMPT, OUTPUT_DIR, MAX_TEXT_LENGTH, OPENROUTER_API_KEY = load_config()
 
 def summarize_text(text):
     if not text.strip():
@@ -63,7 +68,19 @@ def summarize_text(text):
         print(f"Warning: Input text is too long ({len(text)} characters). Truncating to {MAX_TEXT_LENGTH} characters.")
         text = text[:MAX_TEXT_LENGTH]
 
-    if LLM_PROVIDER == 'ollama':
+    headers = {}
+    if LLM_PROVIDER == 'openrouter':
+        headers['Authorization'] = f'Bearer {OPENROUTER_API_KEY}'
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{SUMMARIZATION_PROMPT}\n\n---\n\n{text}",
+                }
+            ],
+        }
+    elif LLM_PROVIDER == 'ollama':
         payload = {
             "model": MODEL_NAME,
             "messages": [
@@ -89,14 +106,14 @@ def summarize_text(text):
 
 
     try:
-        response = requests.post(API_URL, json=payload)
+        response = requests.post(API_URL, json=payload, headers=headers)
         response.raise_for_status()
         data = response.json()
 
         if LLM_PROVIDER == 'ollama':
             if "message" in data and "content" in data["message"]:
                 return data["message"]["content"]
-        else: # lmstudio
+        else: # lmstudio and openrouter
             if "choices" in data and data["choices"] and "message" in data["choices"][0] and "content" in data["choices"][0]["message"]:
                 return data["choices"][0]["message"]["content"]
         
@@ -107,7 +124,7 @@ def summarize_text(text):
         print(f"An error occurred during the API request: {e}")
         if e.response:
             print(f"LM Studio Response: {e.response.text}")
-        print(f"Please ensure the model '{MODEL_NAME}' is loaded in LM Studio and that the server is running correctly at {LMSTUDIO_API_URL}.")
+        print(f"Please ensure the model '{MODEL_NAME}' is loaded in LM Studio and that the server is running correctly at {API_URL}.")
 
         return ""
     except Exception as e:

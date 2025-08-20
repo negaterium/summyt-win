@@ -25,22 +25,38 @@ def load_config():
     
     if llm_provider == 'ollama':
         provider_url = config['youtubedl'].get('ollama_api_url')
-    else:
+    elif llm_provider == 'openrouter':
+        provider_url = config['youtubedl'].get('openrouter-api-url')
+    else: # Default to lmstudio
         provider_url = config['youtubedl'].get('provider-url')
 
     if not llm_model or not provider_url:
         print("Error: Missing required configuration values (llm, provider-url, or ollama_api_url)")
         sys.exit(1)
         
-    return llm_provider, llm_model.strip('"'), provider_url.strip('"'), summary_save_path, category_save_path
+    openrouter_api_key = config['youtubedl'].get('openrouter-api-key', '').strip('"')
+        
+    return llm_provider, llm_model.strip('"'), provider_url.strip('"'), summary_save_path, category_save_path, openrouter_api_key
 
-LLM_PROVIDER, MODEL_NAME, API_URL, SUMMARY_OUTPUT_DIR, CATEGORY_OUTPUT_DIR = load_config()
+LLM_PROVIDER, MODEL_NAME, API_URL, SUMMARY_OUTPUT_DIR, CATEGORY_OUTPUT_DIR, OPENROUTER_API_KEY = load_config()
 
 def analyze_with_llm(text, prompt):
     """
     Analyze text using the same LLM used in summarization.
     """
-    if LLM_PROVIDER == 'ollama':
+    headers = {}
+    if LLM_PROVIDER == 'openrouter':
+        headers['Authorization'] = f'Bearer {OPENROUTER_API_KEY}'
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"{prompt}\n\n---\n\n{text}",
+                }
+            ],
+        }
+    elif LLM_PROVIDER == 'ollama':
         payload = {
             "model": MODEL_NAME,
             "messages": [
@@ -63,14 +79,14 @@ def analyze_with_llm(text, prompt):
         }
     
     try:
-        response = requests.post(API_URL, json=payload)
+        response = requests.post(API_URL, json=payload, headers=headers)
         response.raise_for_status()
         data = response.json()
         
         if LLM_PROVIDER == 'ollama':
             if "message" in data and "content" in data["message"]:
                 return data["message"]["content"]
-        else: # lmstudio
+        else: # lmstudio or openrouter
             if "choices" in data and data["choices"] and "message" in data["choices"][0] and "content" in data["choices"][0]["message"]:
                 return data["choices"][0]["message"]["content"]
 

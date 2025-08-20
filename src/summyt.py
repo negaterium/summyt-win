@@ -60,7 +60,7 @@ def _extract_keyword(text: str) -> str:
     most_common = word_counts.most_common(1)
     return most_common[0][0] if most_common else "summary"
 
-def process_video(youtube_url, enable_hashtag=True, enforced_category=None):
+def process_video(youtube_url, enable_hashtag=True, enforced_category=None, save_md_summary=True):
     start_time = time.time()
 
     yield {'status': 'Getting video information...', 'progress': 5}
@@ -74,7 +74,7 @@ def process_video(youtube_url, enable_hashtag=True, enforced_category=None):
     sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
     expected_summary_filepath = os.path.join(SUMMARY_OUTPUT_DIR, f"{sanitized_title}-summarized.md")
 
-    if os.path.exists(expected_summary_filepath):
+    if os.path.exists(expected_summary_filepath) and save_md_summary:
         yield {'status': 'Summary already exists. Reading existing summary...', 'progress': 100}
         with open(expected_summary_filepath, 'r', encoding='utf-8') as f:
             summary = f.read()
@@ -135,13 +135,14 @@ def process_video(youtube_url, enable_hashtag=True, enforced_category=None):
     sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
     output_filename = os.path.join(SUMMARY_OUTPUT_DIR, f"{sanitized_title}-summarized.md")
 
-    try:
-        os.makedirs(SUMMARY_OUTPUT_DIR, exist_ok=True)
-        with open(output_filename, 'w', encoding='utf-8') as f:
-            f.write(final_summary_content)
-        yield {'status': f'Summary saved to {output_filename}', 'progress': 95}
-    except IOError as e:
-        raise Exception(f"Failed to write summary to {output_filename}: {e}")
+    if save_md_summary:
+        try:
+            os.makedirs(SUMMARY_OUTPUT_DIR, exist_ok=True)
+            with open(output_filename, 'w', encoding='utf-8') as f:
+                f.write(final_summary_content)
+            yield {'status': f'Summary saved to {output_filename}', 'progress': 95}
+        except IOError as e:
+            raise Exception(f"Failed to write summary to {output_filename}: {e}")
 
     if enforced_category:
         yield {'status': f'Enforcing category: {enforced_category}...', 'progress': 98}
@@ -154,7 +155,7 @@ def process_video(youtube_url, enable_hashtag=True, enforced_category=None):
             yield {'status': f'Summary moved to {new_filepath}', 'progress': 99}
         except Exception as e:
             raise Exception(f"Error moving file to enforced category {enforced_category}: {e}")
-    elif ENABLE_CATEGORIZATION:
+    elif ENABLE_CATEGORIZATION and save_md_summary:
         yield {'status': 'Categorizing summary...', 'progress': 98}
         categorize.categorize_summary(output_filename)
 
